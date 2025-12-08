@@ -16,9 +16,11 @@
 <div id="videos">読み込み中...</div>
 
 <script>
-// ★ ここを差し替え済み
+// ★ APIキー（あなたのキー）
 const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
-const CHANNEL_ID = "UCIIpMOhV06P88eaJEqn3EJg";
+
+// ★ 正しいチャンネルID（ここ重要！）
+const CHANNEL_ID = "UCcX5yZbOu6g4d0p9VZTqgOg";
 
 const container = document.getElementById("videos");
 
@@ -29,7 +31,7 @@ async function getUploadsPlaylistId() {
   const data = await res.json();
 
   if (!data.items || data.items.length === 0) {
-    throw new Error("チャンネル情報を取得できません（APIキー無効 / Quota超過 / ID誤り）");
+    throw new Error("チャンネル情報を取得できません");
   }
   return data.items[0].contentDetails.relatedPlaylists.uploads;
 }
