@@ -22,7 +22,7 @@
 const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
 const CHANNEL_ID = "UCGxzWLH1_1ABKKfSiy2WlAw";
 
-// 🔥 1. チャンネルの「uploads プレイリストID」を取得
+// 🔥 Uploads プレイリスト ID を取得
 async function getUploadsPlaylistId() {
     const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
     const res = await fetch(url);
@@ -30,7 +30,7 @@ async function getUploadsPlaylistId() {
     return data.items[0].contentDetails.relatedPlaylists.uploads;
 }
 
-// 🔥 2. プレイリストの動画をすべて取得
+// 🔥 プレイリストから動画を全取得
 async function getAllVideos(playlistId) {
     let videos = [];
     let pageToken = "";
@@ -61,7 +61,7 @@ async function getAllVideos(playlistId) {
     return videos;
 }
 
-// 🔥 3. HTML に動画を表示
+// 🔥 HTML に表示
 function displayVideos(videos) {
     const list = document.getElementById("video-list");
     list.innerHTML = "";
@@ -84,7 +84,7 @@ function displayVideos(videos) {
     });
 }
 
-// 🔥 メイン処理
+// 実行
 (async () => {
     const playlistId = await getUploadsPlaylistId();
     const videos = await getAllVideos(playlistId);
