@@ -2,41 +2,31 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>動画一覧 (動的 channelId 解決付き)</title>
+  <title>ジョージ・メンズコーチ 動画一覧</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     .video { margin-bottom: 20px; }
-    .thumb { width: 240px; }
+    .thumb { width: 240px; border-radius: 8px; }
   </style>
 </head>
 <body>
-  <h1>動画一覧</h1>
-  <div id="status">チャンネル情報取得中…</div>
+  <h1>ジョージ・メンズコーチ 動画一覧</h1>
+  <div id="status">動画を読み込んでいます…</div>
   <div id="videos"></div>
 
   <script>
     const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
-    const HANDLE_URL = "https://www.youtube.com/@coachjoji";
+    const CHANNEL_ID = "UCV9c2i-xw-zgsPGGs9LPu4g";
 
-    async function resolveChannelId(handleUrl) {
-      const res = await fetch(handleUrl);
-      const html = await res.text();
-
-      // externalId または channelId を正規表現で探す
-      const match = html.match(/["'](?:externalId|channelId)["']\s*[:=]\s*["'](UC[0-9A-Za-z_-]{22,})["']/);
-      if (match) {
-        return match[1];
-      }
-      throw new Error("Channel ID not found in page source");
-    }
-
-    async function getUploadsPlaylistId(channelId) {
-      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
+    async function getUploadsPlaylistId() {
+      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
+
       if (!data.items || data.items.length === 0) {
-        throw new Error("Channel not found");
+        throw new Error("Channel not found.");
       }
+
       return data.items[0].contentDetails.relatedPlaylists.uploads;
     }
 
@@ -49,14 +39,10 @@
 
     async function main() {
       try {
-        const channelId = await resolveChannelId(HANDLE_URL);
-        console.log("resolved channelId:", channelId);
-        document.getElementById("status").innerText = "取得した channelId: " + channelId;
+        const playlistId = await getUploadsPlaylistId();
+        const videos = await getVideosFromPlaylist(playlistId);
 
-        const plist = await getUploadsPlaylistId(channelId);
-        const videos = await getVideosFromPlaylist(plist);
-
-        document.getElementById("status").innerText = `動画数: ${videos.length}`;
+        document.getElementById("status").innerText = `動画数：${videos.length}`;
         const container = document.getElementById("videos");
 
         videos.forEach(v => {
@@ -76,7 +62,7 @@
 
       } catch (e) {
         console.error(e);
-        document.getElementById("status").innerText = "エラー: " + e.message;
+        document.getElementById("status").innerText = "動画の読み込みに失敗しました";
       }
     }
 
