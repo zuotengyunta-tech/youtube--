@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>安全・完全版 YouTube 動画リスト</title>
+  <title>チャンネル動画一覧（クリックで再生）</title>
   <style>
     .video-item {
       cursor: pointer;
@@ -21,158 +21,102 @@
 </head>
 
 <body>
-  <h1>動画一覧（クリックで再生）</h1>
+  <h1>ジョージ・メンズコーチ（@coachjoji）動画一覧</h1>
   <div id="videos">読み込み中...</div>
 
   <script>
-    // ▼ ★ここにあなたのAPIキーを入れてください
+    // ★あなたの YouTube Data API キー
     const API_KEY = "YOUR_API_KEY";
 
-    // ▼ ★ここがあなたのプレイリストID
-    const PLAYLIST_ID = "PLExT6MVBKs2BOFn2KPX6FYLQ8btIpOZ5l";
+    // @coachjoji の channelId
+    const CHANNEL_ID = "UCmTtK0CuxRzD84yKhrtam4A";
+
+    // すべてのアップロード動画が入っている自動プレイリスト
+    const UPLOADS_PLAYLIST_ID = "UUmTtK0CuxRzD84yKhrtam4A";
 
     const container = document.getElementById("videos");
 
-    //--------------------------------------------------------------------
-    // 🔥 完全版：動画詳細を videoId から安全に取得
-    //--------------------------------------------------------------------
-    async function getVideoData(videoId, apiKey) {
-      const endpoint = "https://www.googleapis.com/youtube/v3/videos";
-      const url = `${endpoint}?id=${videoId}&part=snippet,contentDetails,statistics&key=${apiKey}`;
+    // 🔥 安全な videoId → 情報取得
+    async function getVideoData(videoId) {
+      const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${API_KEY}`;
 
       try {
         const res = await fetch(url);
-
-        if (!res.ok) {
-          console.error("HTTP Error:", res.status, res.statusText);
-          return null;
-        }
-
         const data = await res.json();
 
-        if (data.error) {
-          console.error("YouTube API Error:", data.error);
-          return null;
-        }
-
-        // items が空 → 削除・非公開
-        if (!data.items || data.items.length === 0) {
-          console.warn(`動画が取得できません（非公開・削除・存在しない）: ${videoId}`);
-          return null;
-        }
+        if (!res.ok || data.error) return null;
+        if (!data.items || data.items.length === 0) return null;
 
         return data.items[0];
-
-      } catch (e) {
-        console.error("Fetch Exception:", e);
+      } catch {
         return null;
       }
     }
 
-    //--------------------------------------------------------------------
-    // 🔥 複数動画を安全にまとめて取得
-    //--------------------------------------------------------------------
-    async function fetchVideos(videoIds, apiKey) {
-      const results = [];
-      for (const id of videoIds) {
-        const info = await getVideoData(id, apiKey);
-        if (info !== null) {
-          results.push(info);
-        } else {
-          console.log(`スキップ: ${id}`);
-        }
-      }
-      return results;
-    }
-
-    //--------------------------------------------------------------------
-    // 🔥 プレイリストの全 videoId を安全に取得（非公開でも落ちない）
-    //--------------------------------------------------------------------
-    async function fetchAllVideoIds(pageToken = "", ids = []) {
+    // 🔥 プレイリスト（アップロード動画一覧）から全 videoId を取得
+    async function fetchAllVideoIds(token = "", results = []) {
       const url =
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet` +
-        `&maxResults=50&playlistId=${PLAYLIST_ID}&key=${API_KEY}&pageToken=${pageToken}`;
+        `&playlistId=${UPLOADS_PLAYLIST_ID}&maxResults=50&key=${API_KEY}` +
+        (token ? `&pageToken=${token}` : "");
 
       try {
         const res = await fetch(url);
         const data = await res.json();
 
-        if (data.error) {
-          console.error("Playlist API Error:", data.error);
-          return ids;
-        }
+        if (!data.items) return results;
 
-        if (data.items) {
-          data.items.forEach(item => {
-            const videoId = item.snippet?.resourceId?.videoId;
-            if (videoId) ids.push(videoId);
-            else console.log("非公開・削除で videoId なし → スキップ");
-          });
-        }
+        data.items.forEach(item => {
+          const videoId = item?.snippet?.resourceId?.videoId;
+          if (videoId) results.push(videoId);
+        });
 
         if (data.nextPageToken) {
-          return fetchAllVideoIds(data.nextPageToken, ids);
+          return fetchAllVideoIds(data.nextPageToken, results);
         }
+      } catch { }
 
-      } catch (e) {
-        console.error("Fetch playlist exception:", e);
-      }
-
-      return ids;
+      return results;
     }
 
-    //--------------------------------------------------------------------
-    // 🔥 初期読み込み（完全安全版）
-    //--------------------------------------------------------------------
+    // 🔥 初期ロード
     (async () => {
-      container.innerHTML = "動画読込中...";
+      container.innerHTML = "読み込み中…";
 
-      // 1. プレイリストから videoId 全取得
-      const videoIds = await fetchAllVideoIds();
+      const ids = await fetchAllVideoIds();
 
-      if (!videoIds.length) {
-        container.innerHTML = "動画がありません（非公開のみ？）";
-        return;
-      }
-
-      // 2. videoId → 詳細データ取得
-      const videos = await fetchVideos(videoIds, API_KEY);
-
-      if (!videos.length) {
-        container.innerHTML = "取得できる動画がありません（全部非公開？）";
+      if (!ids.length) {
+        container.innerHTML = "動画がありません。";
         return;
       }
 
       container.innerHTML = "";
 
-      // 3. HTMLリストとして表示
-      videos.forEach(v => {
+      for (const id of ids) {
+        const v = await getVideoData(id);
+        if (!v) continue;
+
         const title = v.snippet.title;
-        const videoId = v.id;
-        const thumbnail = v.snippet.thumbnails.medium.url;
+        const thumb = v.snippet.thumbnails.medium.url;
 
         const div = document.createElement("div");
         div.className = "video-item";
-
         div.innerHTML = `
-          <img src="${thumbnail}" alt="${title}" loading="lazy" />
+          <img src="${thumb}" alt="${title}" loading="lazy" />
           <p>${title}</p>
         `;
 
         div.onclick = () => {
           div.innerHTML = `
-            <iframe src="https://www.youtube.com/embed/${videoId}?rel=0"
-              frameborder="0"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <iframe src="https://www.youtube.com/embed/${id}" 
+              frameborder="0" allowfullscreen loading="lazy"></iframe>
           `;
         };
 
         container.appendChild(div);
-      });
+      }
     })();
-
   </script>
 </body>
 </html>
+
