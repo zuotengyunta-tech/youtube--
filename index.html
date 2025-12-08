@@ -1,96 +1,98 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>チャンネル投稿動画一覧（安全版）</title>
+  <meta charset="UTF-8" />
+  <title>ジョージ・メンズコーチ 動画一覧</title>
   <style>
-    .video-item { cursor: pointer; margin-bottom: 20px; }
-    .video-item img { max-width: 100%; display: block; }
-    iframe { width: 100%; max-width: 560px; height: 315px; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+    .video-item { cursor: pointer; border: 1px solid #ddd; padding: 10px; border-radius: 8px; transition: transform 0.1s; background: #fafafa; }
+    .video-item:hover { transform: scale(1.02); }
+    .video-item img { width: 100%; border-radius: 6px; }
+    iframe { width: 100%; max-width: 560px; height: 315px; margin-top: 20px; }
+    h2 { margin-bottom: 10px; }
   </style>
 </head>
 <body>
-  <h1>動画一覧（クリックで再生）</h1>
-  <div id="videos">読み込み中...</div>
 
-  <script>
-    const API_KEY = "YOUR_API_KEY";  // ← ここをあなたのキーに
-    const CHANNEL_ID = "UCmTtK0CuxRzD84yKhrtam4A";  // @coachjoji の channelId
+<h2>ジョージ・メンズコーチ（@coachjoji）動画一覧</h2>
+<div id="player"></div>
+<div id="videos">読み込み中...</div>
 
-    const container = document.getElementById("videos");
+<script>
+  const apiKey = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk"; // ← APIキー
+  const channelId = "UCdWidthlZJ8xk5mVL6f3QyAg"; // ← 正しいチャンネルID
 
-    // チャンネル情報から uploads プレイリストID を取得
-    async function getUploadsPlaylistId() {
-      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("channels.list HTTP error " + res.status);
-      const data = await res.json();
-      if (data.error) throw new Error("channels.list API error: " + JSON.stringify(data.error));
-      const items = data.items;
-      if (!items || items.length === 0) throw new Error("Channel not found");
-      return items[0].contentDetails.relatedPlaylists.uploads;
-    }
+  const container = document.getElementById("videos");
+  const player = document.getElementById("player");
 
-    // プレイリストから動画IDリスト取得（全ページ）
-    async function fetchAllVideoIds(playlistId, pageToken = "", ids = []) {
-      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${API_KEY}` + (pageToken ? `&pageToken=${pageToken}` : "");
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("playlistItems.list HTTP error " + res.status);
-      const data = await res.json();
-      if (data.error) throw new Error("playlistItems.list API error: " + JSON.stringify(data.error));
+  // アップロード動画リストの playlistId を取得
+  async function getUploadsPlaylistId() {
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
 
-      if (data.items) {
-        data.items.forEach(item => {
-          const vid = item.snippet?.resourceId?.videoId;
-          if (vid) ids.push(vid);
-        });
+    if (!res.ok) throw new Error(data.error?.message || "API error");
+    return data.items[0].contentDetails.relatedPlaylists.uploads;
+  }
+
+  // playlistId から全動画取得
+  async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${pageToken}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error?.message || "API fetch error");
+
+    if (data.items) allItems = allItems.concat(data.items);
+    if (data.nextPageToken) return fetchAllVideos(playlistId, data.nextPageToken, allItems);
+    return allItems;
+  }
+
+  // 実行
+  getUploadsPlaylistId()
+    .then(playlistId => fetchAllVideos(playlistId))
+    .then(items => {
+      container.innerHTML = "";
+      if (items.length === 0) {
+        container.innerHTML = "動画がありません。";
+        return;
       }
 
-      if (data.nextPageToken) {
-        return fetchAllVideoIds(playlistId, data.nextPageToken, ids);
-      } else {
-        return ids;
-      }
-    }
+      items.forEach(item => {
+        const title = item.snippet.title;
+        const videoId = item.snippet.resourceId?.videoId;
+        if (!videoId) return;
 
-    // ページ読み込み時の処理
-    (async () => {
-      try {
-        const uploadsPlaylistId = await getUploadsPlaylistId();
-        console.log("uploads playlist id:", uploadsPlaylistId);
+        const thumbnail = item.snippet.thumbnails?.medium?.url || "";
 
-        const videoIds = await fetchAllVideoIds(uploadsPlaylistId);
-        console.log("videoIds:", videoIds);
+        const div = document.createElement("div");
+        div.className = "video-item";
 
-        if (!videoIds.length) {
-          container.innerText = "動画がありません（公開動画なし／非公開のみ？）";
-          return;
-        }
+        div.innerHTML = `
+          <img src="${thumbnail}" alt="${title}" />
+          <p>${title}</p>
+        `;
 
-        container.innerHTML = "";
-        videoIds.forEach(videoId => {
-          const thumbUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-          // YouTube のサムネイル URL を直接使う簡易方式
-
-          const div = document.createElement("div");
-          div.className = "video-item";
-          div.innerHTML = `
-            <img src="${thumbUrl}" alt="${videoId}" loading="lazy" />
-            <p>${videoId}</p>
+        div.onclick = () => {
+          player.innerHTML = `
+            <iframe
+              src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1"
+              allow="autoplay; encrypted-media"
+              allowfullscreen
+            ></iframe>
           `;
-          div.onclick = () => {
-            div.innerHTML = `
-              <iframe src="https://www.youtube.com/embed/${videoId}?rel=0"
-                frameborder="0" allowfullscreen loading="lazy"></iframe>
-            `;
-          };
-          container.appendChild(div);
-        });
-      } catch (e) {
-        console.error(e);
-        container.innerText = "エラー: " + e.message;
-      }
-    })();
-  </script>
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        };
+
+        container.appendChild(div);
+      });
+    })
+    .catch(err => {
+      container.innerText = "APIエラー: " + err.message;
+      console.error(err);
+    });
+</script>
+
 </body>
 </html>
