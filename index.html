@@ -1,121 +1,86 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>ジョージ・メンズコーチ 動画一覧</title>
-<style>
+  <meta charset="UTF-8">
+  <title>動画一覧 (動的 channelId 解決付き)</title>
+  <style>
     body { font-family: sans-serif; padding: 20px; }
-    .video-item {
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #ccc;
-    }
-    .video-thumb {
-        width: 320px;
-        border-radius: 4px;
-    }
-</style>
+    .video { margin-bottom: 20px; }
+    .thumb { width: 240px; }
+  </style>
 </head>
 <body>
+  <h1>動画一覧</h1>
+  <div id="status">チャンネル情報取得中…</div>
+  <div id="videos"></div>
 
-<h1>ジョージ・メンズコーチ 動画一覧</h1>
-<div id="status">読み込み中...</div>
-<div id="video-list"></div>
+  <script>
+    const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
+    const HANDLE_URL = "https://www.youtube.com/@coachjoji";
 
-<script>
-const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
-const CHANNEL_ID = "UCV9QN0ZQvJPV3zgWzU7dJVg";  // ←正式 channelId
+    async function resolveChannelId(handleUrl) {
+      const res = await fetch(handleUrl);
+      const html = await res.text();
 
-//-----------------------------------------
-// 1. アップロード動画プレイリストIDを取得
-//-----------------------------------------
-async function getUploadsPlaylistId(channelId) {
-    const url =
-      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    console.log("channel data:", data);
-
-    if (!data.items || data.items.length === 0) {
-        throw new Error("Channel not found. API KEY or CHANNEL ID is invalid.");
+      // externalId または channelId を正規表現で探す
+      const match = html.match(/["'](?:externalId|channelId)["']\s*[:=]\s*["'](UC[0-9A-Za-z_-]{22,})["']/);
+      if (match) {
+        return match[1];
+      }
+      throw new Error("Channel ID not found in page source");
     }
 
-    return data.items[0].contentDetails.relatedPlaylists.uploads;
-}
-
-//-----------------------------------------
-// 2. プレイリスト内の動画をすべて取得
-//-----------------------------------------
-async function getAllVideosFromPlaylist(playlistId) {
-    let videos = [];
-    let nextPage = "";
-
-    while (true) {
-        const url =
-          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet` +
-          `&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${API_KEY}`;
-
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (!data.items) break;
-
-        data.items.forEach(item => {
-            const s = item.snippet;
-            videos.push({
-                title: s.title,
-                videoId: s.resourceId.videoId,
-                thumb: s.thumbnails.medium.url,
-                publishedAt: s.publishedAt
-            });
-        });
-
-        if (!data.nextPageToken) break;
-        nextPage = data.nextPageToken;
-
-        await new Promise(r => setTimeout(r, 100)); // API 負荷軽減
+    async function getUploadsPlaylistId(channelId) {
+      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.items || data.items.length === 0) {
+        throw new Error("Channel not found");
+      }
+      return data.items[0].contentDetails.relatedPlaylists.uploads;
     }
 
-    return videos;
-}
+    async function getVideosFromPlaylist(plId) {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=50&key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.items || [];
+    }
 
-//-----------------------------------------
-// 3. 実行・HTML に表示
-//-----------------------------------------
-async function main() {
-    try {
-        const playlistId = await getUploadsPlaylistId(CHANNEL_ID);
-        console.log("uploads playlist:", playlistId);
+    async function main() {
+      try {
+        const channelId = await resolveChannelId(HANDLE_URL);
+        console.log("resolved channelId:", channelId);
+        document.getElementById("status").innerText = "取得した channelId: " + channelId;
 
-        const videos = await getAllVideosFromPlaylist(playlistId);
+        const plist = await getUploadsPlaylistId(channelId);
+        const videos = await getVideosFromPlaylist(plist);
 
-        document.getElementById("status").innerText =
-            `取得完了：${videos.length} 件`;
-
-        const list = document.getElementById("video-list");
+        document.getElementById("status").innerText = `動画数: ${videos.length}`;
+        const container = document.getElementById("videos");
 
         videos.forEach(v => {
-            list.innerHTML += `
-              <div class="video-item">
-                <img src="${v.thumb}" class="video-thumb"><br>
-                <a href="https://www.youtube.com/watch?v=${v.videoId}"
-                   target="_blank">${v.title}</a><br>
-                <small>${v.publishedAt}</small>
-              </div>
-            `;
+          const id = v.snippet.resourceId.videoId;
+          const title = v.snippet.title;
+          const thumb = v.snippet.thumbnails.medium.url;
+
+          container.innerHTML += `
+            <div class="video">
+              <a href="https://www.youtube.com/watch?v=${id}" target="_blank">
+                <img class="thumb" src="${thumb}">
+              </a><br>
+              <a href="https://www.youtube.com/watch?v=${id}" target="_blank">${title}</a>
+            </div>
+          `;
         });
 
-    } catch (err) {
-        document.getElementById("status").innerText =
-            "動画の読み込みに失敗しました（詳細はコンソール）。";
-        console.error(err);
+      } catch (e) {
+        console.error(e);
+        document.getElementById("status").innerText = "エラー: " + e.message;
+      }
     }
-}
 
-main();
-</script>
-
+    main();
+  </script>
 </body>
 </html>
