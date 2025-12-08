@@ -1,86 +1,96 @@
-import requests
-import time
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube 動画一覧</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f7f7f7; }
+        .video-card {
+            background: white; padding: 10px; margin: 10px 0;
+            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex; align-items: center;
+        }
+        img { width: 180px; border-radius: 6px; margin-right: 15px; }
+    </style>
+</head>
+<body>
 
-API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk"
-CHANNEL_ID = "UCGzxWLH1_1ABKKfSiy2WlAw"  # 右のチャンネル（ジョージ・メンズコーチ）
+<h2>ジョージ・メンズコーチ 動画一覧</h2>
+<div id="video-list">読み込み中...</div>
 
-def get_uploads_playlist_id(channel_id):
-    """
-    指定チャンネルの「アップロード動画プレイリストID」を取得する
-    """
-    url = (
-        "https://www.googleapis.com/youtube/v3/channels"
-        "?part=contentDetails"
-        f"&id={channel_id}"
-        f"&key={API_KEY}"
-    )
+<script>
+const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
+const CHANNEL_ID = "UCGxzWLH1_1ABKKfSiy2WlAw";
 
-    res = requests.get(url).json()
+// 🔥 1. チャンネルの「uploads プレイリストID」を取得
+async function getUploadsPlaylistId() {
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.items[0].contentDetails.relatedPlaylists.uploads;
+}
 
-    if "items" not in res or len(res["items"]) == 0:
-        raise Exception("チャンネルが見つかりません")
+// 🔥 2. プレイリストの動画をすべて取得
+async function getAllVideos(playlistId) {
+    let videos = [];
+    let pageToken = "";
 
-    return res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    while (true) {
+        let url =
+            `https://www.googleapis.com/youtube/v3/playlistItems?` +
+            `part=snippet&playlistId=${playlistId}&maxResults=50&key=${API_KEY}` +
+            (pageToken ? `&pageToken=${pageToken}` : "");
 
+        const res = await fetch(url);
+        const data = await res.json();
 
-def get_all_videos_from_playlist(playlist_id):
-    """
-    プレイリスト内の動画をすべて取得する（次ページ対応）
-    """
-    all_videos = []
-    next_page = None
+        data.items.forEach(item => {
+            const s = item.snippet;
+            videos.push({
+                title: s.title,
+                videoId: s.resourceId.videoId,
+                thumbnail: s.thumbnails.medium.url,
+                published: s.publishedAt
+            });
+        });
 
-    while True:
-        url = (
-            "https://www.googleapis.com/youtube/v3/playlistItems"
-            "?part=snippet"
-            f"&playlistId={playlist_id}"
-            "&maxResults=50"
-            f"&key={API_KEY}"
-        )
-        if next_page:
-            url += f"&pageToken={next_page}"
+        if (!data.nextPageToken) break;
+        pageToken = data.nextPageToken;
+    }
 
-        res = requests.get(url).json()
+    return videos;
+}
 
-        if "items" in res:
-            for item in res["items"]:
-                snippet = item["snippet"]
-                title = snippet["title"]
-                video_id = snippet["resourceId"]["videoId"]
-                published = snippet["publishedAt"]
+// 🔥 3. HTML に動画を表示
+function displayVideos(videos) {
+    const list = document.getElementById("video-list");
+    list.innerHTML = "";
 
-                all_videos.append({
-                    "title": title,
-                    "video_id": video_id,
-                    "url": f"https://www.youtube.com/watch?v={video_id}",
-                    "publishedAt": published
-                })
+    videos.forEach(v => {
+        list.innerHTML += `
+            <div class="video-card">
+                <a href="https://www.youtube.com/watch?v=${v.videoId}" target="_blank">
+                    <img src="${v.thumbnail}">
+                </a>
+                <div>
+                    <h3>${v.title}</h3>
+                    <p>${v.published}</p>
+                    <a href="https://www.youtube.com/watch?v=${v.videoId}" target="_blank">
+                        ▶ 動画を開く
+                    </a>
+                </div>
+            </div>
+        `;
+    });
+}
 
-        # 次ページある？
-        next_page = res.get("nextPageToken")
-        if not next_page:
-            break
+// 🔥 メイン処理
+(async () => {
+    const playlistId = await getUploadsPlaylistId();
+    const videos = await getAllVideos(playlistId);
+    displayVideos(videos);
+})();
+</script>
 
-        time.sleep(0.1)  # API負荷軽減
-
-    return all_videos
-
-
-# ------------------------------------------
-# 実行
-# ------------------------------------------
-
-print("▶ アップロード動画プレイリストIDを取得中...")
-playlist_id = get_uploads_playlist_id(CHANNEL_ID)
-print("   →", playlist_id)
-
-print("▶ 動画一覧を取得中...")
-videos = get_all_videos_from_playlist(playlist_id)
-
-print(f"▶ 取得完了：{len(videos)} 件\n")
-
-for v in videos:
-    print(v["publishedAt"], "-", v["title"])
-    print(v["url"])
-    print()
+</body>
+</html>
