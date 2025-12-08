@@ -2,91 +2,177 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>YouTube Channel Viewer</title>
+  <title>安全・完全版 YouTube 動画リスト</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
-    .video-item { cursor: pointer; border: 1px solid #ddd; padding: 10px; border-radius: 8px; transition: transform 0.1s; }
-    .video-item:hover { transform: scale(1.02); }
-    .video-item img { width: 100%; border-radius: 6px; }
-    iframe { width: 100%; max-width: 560px; height: 315px; margin-top: 20px; }
+    .video-item {
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .video-item img {
+      max-width: 100%;
+      display: block;
+    }
+    iframe {
+      width: 100%;
+      max-width: 560px;
+      height: 315px;
+    }
   </style>
 </head>
+
 <body>
+  <h1>動画一覧（クリックで再生）</h1>
+  <div id="videos">読み込み中...</div>
 
-<h2>Coach Joji 動画一覧</h2>
-<div id="player"></div>
-<div id="videos">読み込み中...</div>
+  <script>
+    // ▼ ★ここにあなたのAPIキーを入れてください
+    const API_KEY = "YOUR_API_KEY";
 
-<script>
-  const apiKey = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk"; // ★ Your API Key
-  const channelId = "UCO86sryzteNAiPIJd5aLcyw"; // @coachjoji のチャンネルID
+    // ▼ ★ここがあなたのプレイリストID
+    const PLAYLIST_ID = "PLExT6MVBKs2BOFn2KPX6FYLQ8btIpOZ5l";
 
-  const container = document.getElementById("videos");
-  const player = document.getElementById("player");
+    const container = document.getElementById("videos");
 
-  // チャンネルの Uploads Playlist ID を取得
-  async function getUploadsPlaylistId() {
-    const url =
-      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.items[0].contentDetails.relatedPlaylists.uploads;
-  }
+    //--------------------------------------------------------------------
+    // 🔥 完全版：動画詳細を videoId から安全に取得
+    //--------------------------------------------------------------------
+    async function getVideoData(videoId, apiKey) {
+      const endpoint = "https://www.googleapis.com/youtube/v3/videos";
+      const url = `${endpoint}?id=${videoId}&part=snippet,contentDetails,statistics&key=${apiKey}`;
 
-  // 動画一覧取得
-  async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
-    const url =
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${pageToken}`;
-    const res = await fetch(url);
-    const data = await res.json();
+      try {
+        const res = await fetch(url);
 
-    if (!res.ok) throw new Error(data.error?.message || "API fetch error");
+        if (!res.ok) {
+          console.error("HTTP Error:", res.status, res.statusText);
+          return null;
+        }
 
-    if (data.items) allItems = allItems.concat(data.items);
-    if (data.nextPageToken) return fetchAllVideos(playlistId, data.nextPageToken, allItems);
-    return allItems;
-  }
+        const data = await res.json();
 
-  // 実行
-  getUploadsPlaylistId()
-    .then(playlistId => fetchAllVideos(playlistId))
-    .then(items => {
+        if (data.error) {
+          console.error("YouTube API Error:", data.error);
+          return null;
+        }
+
+        // items が空 → 削除・非公開
+        if (!data.items || data.items.length === 0) {
+          console.warn(`動画が取得できません（非公開・削除・存在しない）: ${videoId}`);
+          return null;
+        }
+
+        return data.items[0];
+
+      } catch (e) {
+        console.error("Fetch Exception:", e);
+        return null;
+      }
+    }
+
+    //--------------------------------------------------------------------
+    // 🔥 複数動画を安全にまとめて取得
+    //--------------------------------------------------------------------
+    async function fetchVideos(videoIds, apiKey) {
+      const results = [];
+      for (const id of videoIds) {
+        const info = await getVideoData(id, apiKey);
+        if (info !== null) {
+          results.push(info);
+        } else {
+          console.log(`スキップ: ${id}`);
+        }
+      }
+      return results;
+    }
+
+    //--------------------------------------------------------------------
+    // 🔥 プレイリストの全 videoId を安全に取得（非公開でも落ちない）
+    //--------------------------------------------------------------------
+    async function fetchAllVideoIds(pageToken = "", ids = []) {
+      const url =
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet` +
+        `&maxResults=50&playlistId=${PLAYLIST_ID}&key=${API_KEY}&pageToken=${pageToken}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.error) {
+          console.error("Playlist API Error:", data.error);
+          return ids;
+        }
+
+        if (data.items) {
+          data.items.forEach(item => {
+            const videoId = item.snippet?.resourceId?.videoId;
+            if (videoId) ids.push(videoId);
+            else console.log("非公開・削除で videoId なし → スキップ");
+          });
+        }
+
+        if (data.nextPageToken) {
+          return fetchAllVideoIds(data.nextPageToken, ids);
+        }
+
+      } catch (e) {
+        console.error("Fetch playlist exception:", e);
+      }
+
+      return ids;
+    }
+
+    //--------------------------------------------------------------------
+    // 🔥 初期読み込み（完全安全版）
+    //--------------------------------------------------------------------
+    (async () => {
+      container.innerHTML = "動画読込中...";
+
+      // 1. プレイリストから videoId 全取得
+      const videoIds = await fetchAllVideoIds();
+
+      if (!videoIds.length) {
+        container.innerHTML = "動画がありません（非公開のみ？）";
+        return;
+      }
+
+      // 2. videoId → 詳細データ取得
+      const videos = await fetchVideos(videoIds, API_KEY);
+
+      if (!videos.length) {
+        container.innerHTML = "取得できる動画がありません（全部非公開？）";
+        return;
+      }
+
       container.innerHTML = "";
 
-      items.forEach(item => {
-        const title = item.snippet.title;
-        const videoId = item.snippet.resourceId?.videoId || "";
-        if (!videoId) return;
-
-        const thumbnail = item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url;
+      // 3. HTMLリストとして表示
+      videos.forEach(v => {
+        const title = v.snippet.title;
+        const videoId = v.id;
+        const thumbnail = v.snippet.thumbnails.medium.url;
 
         const div = document.createElement("div");
         div.className = "video-item";
+
         div.innerHTML = `
-          <img src="${thumbnail}" alt="${title}" />
+          <img src="${thumbnail}" alt="${title}" loading="lazy" />
           <p>${title}</p>
         `;
 
         div.onclick = () => {
-          player.innerHTML = `
-            <iframe
-              src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1"
-              allow="autoplay; encrypted-media"
+          div.innerHTML = `
+            <iframe src="https://www.youtube.com/embed/${videoId}?rel=0"
+              frameborder="0"
               allowfullscreen
-            ></iframe>
+              loading="lazy">
+            </iframe>
           `;
-          window.scrollTo({ top: 0, behavior: "smooth" });
         };
 
         container.appendChild(div);
       });
-    })
-    .catch(err => {
-      container.innerText = "APIエラー: " + err.message;
-      console.error(err);
-    });
-</script>
+    })();
 
+  </script>
 </body>
 </html>
