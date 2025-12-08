@@ -1,119 +1,94 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>チャンネル動画一覧（クリックで再生）</title>
+  <meta charset="UTF-8">
+  <title>チャンネル投稿動画一覧（安全版）</title>
   <style>
-    .video-item {
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    .video-item img {
-      max-width: 100%;
-      display: block;
-    }
-    iframe {
-      width: 100%;
-      max-width: 560px;
-      height: 315px;
-    }
+    .video-item { cursor: pointer; margin-bottom: 20px; }
+    .video-item img { max-width: 100%; display: block; }
+    iframe { width: 100%; max-width: 560px; height: 315px; }
   </style>
 </head>
-
 <body>
-  <h1>ジョージ・メンズコーチ（@coachjoji）動画一覧</h1>
+  <h1>動画一覧（クリックで再生）</h1>
   <div id="videos">読み込み中...</div>
 
   <script>
-    // ★あなたの YouTube Data API キー
-    const API_KEY = "YOUR_API_KEY";
-
-    // @coachjoji の channelId
-    const CHANNEL_ID = "UCmTtK0CuxRzD84yKhrtam4A";
-
-    // すべてのアップロード動画が入っている自動プレイリスト
-    const UPLOADS_PLAYLIST_ID = "UUmTtK0CuxRzD84yKhrtam4A";
+    const API_KEY = "YOUR_API_KEY";  // ← ここをあなたのキーに
+    const CHANNEL_ID = "UCmTtK0CuxRzD84yKhrtam4A";  // @coachjoji の channelId
 
     const container = document.getElementById("videos");
 
-    // 🔥 安全な videoId → 情報取得
-    async function getVideoData(videoId) {
-      const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${API_KEY}`;
-
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (!res.ok || data.error) return null;
-        if (!data.items || data.items.length === 0) return null;
-
-        return data.items[0];
-      } catch {
-        return null;
-      }
+    // チャンネル情報から uploads プレイリストID を取得
+    async function getUploadsPlaylistId() {
+      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("channels.list HTTP error " + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error("channels.list API error: " + JSON.stringify(data.error));
+      const items = data.items;
+      if (!items || items.length === 0) throw new Error("Channel not found");
+      return items[0].contentDetails.relatedPlaylists.uploads;
     }
 
-    // 🔥 プレイリスト（アップロード動画一覧）から全 videoId を取得
-    async function fetchAllVideoIds(token = "", results = []) {
-      const url =
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet` +
-        `&playlistId=${UPLOADS_PLAYLIST_ID}&maxResults=50&key=${API_KEY}` +
-        (token ? `&pageToken=${token}` : "");
+    // プレイリストから動画IDリスト取得（全ページ）
+    async function fetchAllVideoIds(playlistId, pageToken = "", ids = []) {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${API_KEY}` + (pageToken ? `&pageToken=${pageToken}` : "");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("playlistItems.list HTTP error " + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error("playlistItems.list API error: " + JSON.stringify(data.error));
 
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (!data.items) return results;
-
+      if (data.items) {
         data.items.forEach(item => {
-          const videoId = item?.snippet?.resourceId?.videoId;
-          if (videoId) results.push(videoId);
+          const vid = item.snippet?.resourceId?.videoId;
+          if (vid) ids.push(vid);
         });
-
-        if (data.nextPageToken) {
-          return fetchAllVideoIds(data.nextPageToken, results);
-        }
-      } catch { }
-
-      return results;
-    }
-
-    // 🔥 初期ロード
-    (async () => {
-      container.innerHTML = "読み込み中…";
-
-      const ids = await fetchAllVideoIds();
-
-      if (!ids.length) {
-        container.innerHTML = "動画がありません。";
-        return;
       }
 
-      container.innerHTML = "";
+      if (data.nextPageToken) {
+        return fetchAllVideoIds(playlistId, data.nextPageToken, ids);
+      } else {
+        return ids;
+      }
+    }
 
-      for (const id of ids) {
-        const v = await getVideoData(id);
-        if (!v) continue;
+    // ページ読み込み時の処理
+    (async () => {
+      try {
+        const uploadsPlaylistId = await getUploadsPlaylistId();
+        console.log("uploads playlist id:", uploadsPlaylistId);
 
-        const title = v.snippet.title;
-        const thumb = v.snippet.thumbnails.medium.url;
+        const videoIds = await fetchAllVideoIds(uploadsPlaylistId);
+        console.log("videoIds:", videoIds);
 
-        const div = document.createElement("div");
-        div.className = "video-item";
-        div.innerHTML = `
-          <img src="${thumb}" alt="${title}" loading="lazy" />
-          <p>${title}</p>
-        `;
+        if (!videoIds.length) {
+          container.innerText = "動画がありません（公開動画なし／非公開のみ？）";
+          return;
+        }
 
-        div.onclick = () => {
+        container.innerHTML = "";
+        videoIds.forEach(videoId => {
+          const thumbUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+          // YouTube のサムネイル URL を直接使う簡易方式
+
+          const div = document.createElement("div");
+          div.className = "video-item";
           div.innerHTML = `
-            <iframe src="https://www.youtube.com/embed/${id}" 
-              frameborder="0" allowfullscreen loading="lazy"></iframe>
+            <img src="${thumbUrl}" alt="${videoId}" loading="lazy" />
+            <p>${videoId}</p>
           `;
-        };
-
-        container.appendChild(div);
+          div.onclick = () => {
+            div.innerHTML = `
+              <iframe src="https://www.youtube.com/embed/${videoId}?rel=0"
+                frameborder="0" allowfullscreen loading="lazy"></iframe>
+            `;
+          };
+          container.appendChild(div);
+        });
+      } catch (e) {
+        console.error(e);
+        container.innerText = "エラー: " + e.message;
       }
     })();
   </script>
