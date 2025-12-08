@@ -17,27 +17,26 @@
 
 <script>
 // ★ 必須設定
-const API_KEY = "YOUR_API_KEY"; // ← 再発行したキーを入れる
+const API_KEY = "YOUR_API_KEY"; //AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk
 const CHANNEL_ID = "UCIIpMOhV06P88eaJEqn3EJg";
 
 const container = document.getElementById("videos");
 
-// 1) チャンネル → uploads プレイリストIDを取得
+// 1) uploads プレイリストID取得
 async function getUploadsPlaylistId() {
   const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
-  
+
   if (!data.items || data.items.length === 0) {
-    throw new Error("チャンネルが見つかりません（IDが無効）");
+    throw new Error("チャンネル情報を取得できません（APIキー無効 / Quota超過 / ID誤り）");
   }
   return data.items[0].contentDetails.relatedPlaylists.uploads;
 }
 
-// 2) uploads プレイリストから全動画を取得
+// 2) プレイリストから全動画取得
 async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
   const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${API_KEY}&pageToken=${pageToken}`;
-  
   const res = await fetch(url);
   const data = await res.json();
 
@@ -48,21 +47,16 @@ async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
   return allItems;
 }
 
-// 3) 個別動画データを取得（非公開なら null）
+// 3) 個別動画取得
 async function getVideoData(videoId) {
   const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails,statistics&key=${API_KEY}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.items || data.items.length === 0) return null;
-    return data.items[0];
-  } catch {
-    return null;
-  }
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.items || data.items.length === 0) return null;
+  return data.items[0];
 }
 
-// 4) 全処理まとめ
+// 4) 実行
 (async () => {
   try {
     const uploadsPlaylistId = await getUploadsPlaylistId();
@@ -73,19 +67,14 @@ async function getVideoData(videoId) {
       .filter(id => !!id);
 
     if (videoIds.length === 0) {
-      container.innerText = "動画がありません（非公開のみ？）";
+      container.innerText = "動画がありません。";
       return;
     }
 
     const videos = [];
     for (const id of videoIds) {
-      const data = await getVideoData(id);
-      if (data) videos.push(data);
-    }
-
-    if (videos.length === 0) {
-      container.innerText = "公開動画がありません。";
-      return;
+      const v = await getVideoData(id);
+      if (v) videos.push(v);
     }
 
     container.innerHTML = "";
@@ -97,6 +86,7 @@ async function getVideoData(videoId) {
 
       const div = document.createElement("div");
       div.className = "video-item";
+
       div.innerHTML = `
         <img src="${thumbnail}" alt="${title}" loading="lazy" />
         <p>${title}</p>
@@ -114,7 +104,7 @@ async function getVideoData(videoId) {
 
   } catch (e) {
     console.error(e);
-    container.innerText = "APIエラー: " + e.message;
+    container.innerText = "YouTube APIエラー: " + e.message;
   }
 })();
 </script>
