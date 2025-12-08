@@ -2,113 +2,145 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ジョージ・メンズコーチ（@coachjoji）動画一覧</title>
+  <title>@coachjoji 動画一覧（完全デバッグ版）</title>
   <style>
-    body { font-family: sans-serif; }
-    .video-item { cursor: pointer; margin-bottom: 20px; }
-    .video-item img { max-width: 100%; display: block; }
-    iframe { width: 100%; max-width: 560px; height: 315px; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+    .video-item { cursor: pointer; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fafafa; transition: transform 0.1s; }
+    .video-item:hover { transform: scale(1.02); }
+    .video-item img { width: 100%; border-radius: 6px; }
+    iframe { width: 100%; max-width: 560px; height: 315px; margin-top: 20px; }
+    h2 { margin-bottom: 10px; }
+    #log { white-space: pre-wrap; font-size: 14px; background:#222; color:#0f0; padding:10px; margin-top:20px; }
   </style>
 </head>
 <body>
 
-<h1>ジョージ・メンズコーチ（@coachjoji）動画一覧</h1>
+<h2>@coachjoji 動画一覧（完全版）</h2>
+<p id="status">状態: 初期化中…</p>
+<div id="player"></div>
 <div id="videos">読み込み中...</div>
+<h3>デバッグログ</h3>
+<div id="log"></div>
 
 <script>
-// ★ APIキー（あなたのキー）
-const API_KEY = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
+  // =============================
+  // 設定
+  // =============================
+  const apiKey = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";  // ←差し替え済み
+  const channelId = "UCdWidthlZJ8xk5mVL6f3QyAg"; // @coachjoji
 
-// ★ 正しいチャンネルID（ここ重要！）
-const CHANNEL_ID = "UCcX5yZbOu6g4d0p9VZTqgOg";
+  const container = document.getElementById("videos");
+  const player = document.getElementById("player");
+  const log = document.getElementById("log");
+  const status = document.getElementById("status");
 
-const container = document.getElementById("videos");
-
-// 1) uploads プレイリストID取得
-async function getUploadsPlaylistId() {
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-
-  if (!data.items || data.items.length === 0) {
-    throw new Error("チャンネル情報を取得できません");
+  function logMsg(msg) {
+    console.log(msg);
+    log.textContent += msg + "\n";
   }
-  return data.items[0].contentDetails.relatedPlaylists.uploads;
-}
 
-// 2) プレイリストから全動画取得
-async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
-  const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${API_KEY}&pageToken=${pageToken}`;
-  const res = await fetch(url);
-  const data = await res.json();
+  async function getUploadsPlaylistId() {
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
+    logMsg("GET playlistId: " + url);
 
-  if (data.items) allItems = allItems.concat(data.items);
-  if (data.nextPageToken) {
-    return fetchAllVideos(playlistId, data.nextPageToken, allItems);
+    const res = await fetch(url);
+    const data = await res.json();
+    logMsg("channels API response:");
+    logMsg(JSON.stringify(data, null, 2));
+
+    if (!res.ok) throw new Error("channels API error: " + (data.error?.message || res.status));
+    if (!data.items?.length) throw new Error("チャンネルが見つからない／items空");
+
+    const uploads = data.items[0].contentDetails?.relatedPlaylists?.uploads;
+    if (!uploads) throw new Error("uploads playlist ID が取得できません（埋め込み禁止/プライバシー可能性）");
+    return uploads;
   }
-  return allItems;
-}
 
-// 3) 個別動画データ取得
-async function getVideoData(videoId) {
-  const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails,statistics&key=${API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data.items || data.items.length === 0) return null;
-  return data.items[0];
-}
+  async function fetchAllVideos(playlistId, pageToken = "", allItems = []) {
+    const url =
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=50&playlistId=${playlistId}&key=${apiKey}`
+      + (pageToken ? `&pageToken=${pageToken}` : "");
 
-// 4) 実行
-(async () => {
-  try {
-    const uploadsPlaylistId = await getUploadsPlaylistId();
-    const rawItems = await fetchAllVideos(uploadsPlaylistId);
+    logMsg("GET playlistItems: " + url);
 
-    const videoIds = rawItems
-      .map(v => v.snippet?.resourceId?.videoId)
-      .filter(id => !!id);
+    const res = await fetch(url);
+    const data = await res.json();
+    logMsg("playlistItems response:");
+    logMsg(JSON.stringify(data, null, 2));
 
-    if (videoIds.length === 0) {
-      container.innerText = "動画がありません。";
-      return;
+    if (!res.ok) throw new Error("playlistItems API error: " + (data.error?.message || res.status));
+
+    if (data.items) allItems = allItems.concat(data.items);
+    if (data.nextPageToken) {
+      return fetchAllVideos(playlistId, data.nextPageToken, allItems);
     }
-
-    const videos = [];
-    for (const id of videoIds) {
-      const v = await getVideoData(id);
-      if (v) videos.push(v);
-    }
-
-    container.innerHTML = "";
-
-    videos.forEach(v => {
-      const title = v.snippet.title;
-      const thumbnail = v.snippet.thumbnails.medium.url;
-      const videoId = v.id;
-
-      const div = document.createElement("div");
-      div.className = "video-item";
-
-      div.innerHTML = `
-        <img src="${thumbnail}" alt="${title}" loading="lazy" />
-        <p>${title}</p>
-      `;
-
-      div.onclick = () => {
-        div.innerHTML = `
-          <iframe src="https://www.youtube.com/embed/${videoId}?rel=0"
-            frameborder="0" allowfullscreen loading="lazy"></iframe>
-        `;
-      };
-
-      container.appendChild(div);
-    });
-
-  } catch (e) {
-    console.error(e);
-    container.innerText = "YouTube APIエラー: " + e.message;
+    return allItems;
   }
-})();
+
+  function showVideo(id) {
+    logMsg("再生 videoId: " + id);
+
+    player.innerHTML = `
+      <iframe
+        src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&autoplay=1"
+        allow="autoplay; encrypted-media"
+        allowfullscreen>
+      </iframe>
+    `;
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function init() {
+    try {
+      status.textContent = "状態: playlist ID取得中…";
+      const playlistId = await getUploadsPlaylistId();
+      logMsg("playlistId = " + playlistId);
+
+      status.textContent = "状態: 動画一覧取得中…";
+      const items = await fetchAllVideos(playlistId);
+
+      logMsg("動画総数 = " + items.length);
+
+      container.innerHTML = "";
+      if (items.length === 0) {
+        container.textContent = "動画がありません（非公開または埋め込み禁止の可能性）";
+        return;
+      }
+
+      items.forEach(item => {
+        const videoId = item?.snippet?.resourceId?.videoId;
+        const title = item?.snippet?.title ?? "（タイトルなし）";
+        const thumb = item?.snippet?.thumbnails?.medium?.url ?? "";
+
+        if (!videoId) {
+          logMsg(`⚠ videoIdなし: ${title}`);
+          return;
+        }
+
+        const div = document.createElement("div");
+        div.className = "video-item";
+        div.innerHTML = `<img src="${thumb}" /><p>${title}</p>`;
+        div.onclick = () => showVideo(videoId);
+
+        container.appendChild(div);
+      });
+
+      status.textContent = "状態: 完了";
+
+      logMsg("\n=== EmbedテストURL ===");
+      logMsg("https://www.youtube.com/embed/?list=" + playlistId);
+      logMsg("====================\n");
+
+    } catch (err) {
+      container.textContent = "エラー: " + err.message;
+      status.textContent = "状態: 失敗";
+      logMsg("ERROR: " + err.message);
+    }
+  }
+
+  init();
 </script>
 
 </body>
