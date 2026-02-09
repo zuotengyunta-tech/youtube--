@@ -2,15 +2,29 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>YouTube 動画一覧（全件表示）</title>
+  <title>YouTube 動画一覧（埋め込み・全件）</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    .video { margin-bottom: 20px; }
-    .thumb { width: 240px; border-radius: 8px; }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .video {
+      margin-bottom: 40px;
+    }
+    iframe {
+      width: 100%;
+      max-width: 560px;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+    }
+    .title {
+      margin-top: 8px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <h1>ジョージ・メンズコーチ - 全動画一覧（新しい順）</h1>
+  <h1>ジョージ・メンズコーチ - 全動画一覧（埋め込み）</h1>
   <div id="status">読み込み中…</div>
   <div id="videos"></div>
 
@@ -30,7 +44,6 @@
       return data.items[0].contentDetails.relatedPlaylists.uploads;
     }
 
-    // ▼ ここがポイント：nextPageToken を使って動画を全部取得
     async function getAllVideosFromPlaylist(plId) {
       let videos = [];
       let pageToken = "";
@@ -42,13 +55,11 @@
           (pageToken ? `&pageToken=${pageToken}` : "");
 
         const data = await fetch(url).then(r => r.json());
-
         videos = videos.concat(data.items);
 
         if (!data.nextPageToken) break;
         pageToken = data.nextPageToken;
       }
-
       return videos;
     }
 
@@ -61,7 +72,6 @@
         document.getElementById("status").innerText = `動画数: ${videos.length}`;
         const container = document.getElementById("videos");
 
-        // 新しい順（API はもともと新しい順だが念のためソート）
         videos.sort((a, b) =>
           new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt)
         );
@@ -69,16 +79,17 @@
         videos.forEach(v => {
           const id = v.snippet.resourceId.videoId;
           const title = v.snippet.title;
-          const thumb = v.snippet.thumbnails.medium.url;
 
           container.innerHTML += `
             <div class="video">
-              <a href="https://www.youtube.com/watch?v=${id}" target="_blank">
-                <img class="thumb" src="${thumb}" />
-              </a><br />
-              <a href="https://www.youtube.com/watch?v=${id}" target="_blank">
-                ${title}
-              </a>
+              <iframe
+                src="https://www.youtube.com/embed/${id}"
+                title="${title}"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+              </iframe>
+              <div class="title">${title}</div>
             </div>
           `;
         });
