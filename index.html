@@ -7,6 +7,14 @@
     body {
       font-family: sans-serif;
       padding: 20px;
+      background: #fafafa;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #status {
+      margin-bottom: 20px;
+      color: #555;
     }
     .video {
       margin-bottom: 40px;
@@ -15,7 +23,9 @@
       width: 100%;
       max-width: 560px;
       aspect-ratio: 16 / 9;
+      border: none;
       border-radius: 12px;
+      background: #000;
     }
     .title {
       margin-top: 8px;
@@ -24,7 +34,8 @@
   </style>
 </head>
 <body>
-  <h1>ジョージ・メンズコーチ - 全動画一覧（埋め込み）</h1>
+
+  <h1>ジョージ・メンズコーチ｜全動画一覧（埋め込み）</h1>
   <div id="status">読み込み中…</div>
   <div id="videos"></div>
 
@@ -33,25 +44,29 @@
     const CHANNEL_HANDLE = "@coachjoji";
 
     async function getChannelId() {
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${CHANNEL_HANDLE}&key=${API_KEY}`;
+      const url =
+        `https://www.googleapis.com/youtube/v3/search?` +
+        `part=snippet&type=channel&q=${CHANNEL_HANDLE}&key=${API_KEY}`;
       const data = await fetch(url).then(r => r.json());
       return data.items[0].id.channelId;
     }
 
     async function getUploadsPlaylistId(channelId) {
-      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
+      const url =
+        `https://www.googleapis.com/youtube/v3/channels?` +
+        `part=contentDetails&id=${channelId}&key=${API_KEY}`;
       const data = await fetch(url).then(r => r.json());
       return data.items[0].contentDetails.relatedPlaylists.uploads;
     }
 
-    async function getAllVideosFromPlaylist(plId) {
+    async function getAllVideosFromPlaylist(playlistId) {
       let videos = [];
       let pageToken = "";
 
       while (true) {
         const url =
           `https://www.googleapis.com/youtube/v3/playlistItems?` +
-          `part=snippet&playlistId=${plId}&maxResults=50&key=${API_KEY}` +
+          `part=snippet&playlistId=${playlistId}&maxResults=50&key=${API_KEY}` +
           (pageToken ? `&pageToken=${pageToken}` : "");
 
         const data = await fetch(url).then(r => r.json());
@@ -69,39 +84,43 @@
         const playlistId = await getUploadsPlaylistId(channelId);
         const videos = await getAllVideosFromPlaylist(playlistId);
 
-        document.getElementById("status").innerText = `動画数: ${videos.length}`;
+        document.getElementById("status").innerText =
+          `動画数：${videos.length}`;
+
         const container = document.getElementById("videos");
 
+        // 新しい順に並び替え
         videos.sort((a, b) =>
-          new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt)
+          new Date(b.snippet.publishedAt) -
+          new Date(a.snippet.publishedAt)
         );
 
         videos.forEach(v => {
           const id = v.snippet.resourceId.videoId;
           const title = v.snippet.title;
 
-          container.innerHTML += `
+          container.insertAdjacentHTML("beforeend", `
             <div class="video">
               <iframe
-                src="https://www.youtube.com/embed/${id}"
+                src="https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1"
                 title="${title}"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen>
               </iframe>
               <div class="title">${title}</div>
             </div>
-          `;
+          `);
         });
 
-      } catch (e) {
-        console.error(e);
+      } catch (err) {
+        console.error(err);
         document.getElementById("status").innerText =
-          "読み込み失敗（詳細はコンソール）";
+          "読み込みに失敗しました（コンソールを確認）";
       }
     }
 
     main();
   </script>
+
 </body>
 </html>
