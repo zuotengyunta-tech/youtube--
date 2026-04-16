@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ジョージ・メンズコーチ｜全動画一覧（Frann Viewer）</title>
+  <title>男磨きジョージ - Playlist Viewer</title>
   <style>
     :root {
       --player-width: 45%;
@@ -18,12 +18,30 @@
       padding: 15px;
       gap: 15px;
     }
-    #sidebar { width: 0; overflow: hidden; background: white; border-radius: 12px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: width 0.4s ease; height: fit-content; align-self: flex-start; }
+    #sidebar {
+      width: 0;
+      overflow: hidden;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      transition: width 0.4s ease;
+      height: fit-content;
+      align-self: flex-start;
+    }
     #sidebar.open { width: 340px; padding: 15px; }
-    #sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    #sidebar-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
     #sidebar h3 { margin: 0; font-size: 16px; }
-    #clearHistoryBtn { font-size: 11px; padding: 4px 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .history-item { padding: 10px; margin-bottom: 8px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    #clearHistoryBtn {
+      font-size: 11px; padding: 4px 10px;
+      background: #f44336; color: white;
+      border: none; border-radius: 4px; cursor: pointer;
+    }
+    .history-item {
+      padding: 10px; margin-bottom: 8px; border-radius: 6px;
+      font-size: 14px; cursor: pointer;
+    }
     .history-item:hover { background: #f5f5f5; }
     #toggleHistoryBtn {
       position: fixed; left: 15px; top: 25px;
@@ -32,43 +50,173 @@
       border: none; border-radius: 50%;
       font-size: 18px; cursor: pointer; z-index: 300;
     }
-    #main { flex: 1; display: flex; gap: 15px; max-width: 1400px; width: 100%; }
+    #main {
+      flex: 1;
+      display: flex;
+      gap: 15px;
+      max-width: 1400px;
+      width: 100%;
+    }
     #player-area {
-      width: var(--player-width); height: var(--player-height); flex-shrink: 0; align-self: flex-start;
-      position: relative; min-width: 320px; max-width: 70%;
-      background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); overflow: hidden;
+      width: var(--player-width);
+      height: var(--player-height);
+      flex-shrink: 0;
+      align-self: flex-start;
+      position: relative;
+      min-width: 320px;
+      max-width: 70%;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+      overflow: hidden;
     }
-    #player { width: 100%; height: 100%; }
-    iframe { width: 100%; height: 100%; border: none; display: block; }
-    #player-horizontal-handle { position: absolute; top: 0; right: -4px; width: 9px; height: 100%; background: transparent; cursor: col-resize; z-index: 220; }
+    #player {
+      width: 100%;
+      height: 100%;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    #player-horizontal-handle {
+      position: absolute;
+      top: 0;
+      right: -4px;
+      width: 9px;
+      height: 100%;
+      background: transparent;
+      cursor: col-resize;
+      z-index: 220;
+    }
     #vertical-resize-bar {
-      position: absolute; bottom: 0; left: 0; width: 100%; height: 8px;
-      background: #ddd; cursor: row-resize; z-index: 230; transition: background 0.2s;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: #ddd;
+      cursor: row-resize;
+      z-index: 230;
+      transition: background 0.2s;
     }
-    #vertical-resize-bar:hover, #vertical-resize-bar.active { background: #ff0000; }
-    #resize-bar { width: 6px; background: #ddd; cursor: col-resize; border-radius: 3px; margin: 0 -3px; z-index: 100; transition: background 0.2s; }
-    #resize-bar:hover, #resize-bar.active { background: #ff0000; }
-    #thumbnail-area { flex: 1; display: flex; flex-direction: column; max-height: 100vh; }
-    h2 { margin: 0 0 15px 0; text-align: center; font-size: 25px; }
-    #videos-wrapper { flex: 1; overflow-y: auto; padding-right: 12px; }
-    #videos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    .video-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
+    #vertical-resize-bar:hover,
+    #vertical-resize-bar.active {
+      background: #ff0000;
+    }
+    #resize-bar {
+      width: 6px;
+      background: #ddd;
+      cursor: col-resize;
+      border-radius: 3px;
+      margin: 0 -3px;
+      z-index: 100;
+      transition: background 0.2s;
+    }
+    #resize-bar:hover,
+    #resize-bar.active {
+      background: #ff0000;
+    }
+    #thumbnail-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+    h2 { margin: 0 0 15px 0; text-align: center; font-size: 28px; font-weight: bold; }
+    #videos-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 12px;
+    }
+    #videos {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .video-item {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+      position: relative;
+    }
     .video-item:hover { transform: translateY(-4px); }
     .thumbnail { position: relative; cursor: pointer; }
-    .thumbnail img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+    .thumbnail img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
     .play-btn {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 60px; height: 60px; background: rgba(0,0,0,0.78); color: white;
-      border-radius: 50%; display: grid; place-items: center; font-size: 32px;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px; height: 60px;
+      background: rgba(0,0,0,0.78);
+      color: white;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 32px;
     }
     .play-btn:hover { background: #ff0000; }
-    .active { outline: 4px solid #ff0000; outline-offset: -4px; }
+    /* タイトル部分 */
+    .video-title {
+      padding: 10px 8px 12px 12px;
+      font-size: 14px;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      position: relative;
+      padding-right: 70px;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      background: rgba(0,0,0,0.85);
+      color: white;
+      border: none;
+      padding: 4px 9px;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 25;
+      opacity: 0;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .video-item:hover .copy-btn {
+      opacity: 1;
+    }
+    .copy-btn:hover {
+      background: #ff0000;
+    }
+    .active {
+      outline: 4px solid #ff0000;
+      outline-offset: -4px;
+    }
     .fixed-buttons {
-      position: fixed; right: 40px; bottom: 35px; display: flex; flex-direction: column; gap: 12px; z-index: 100;
+      position: fixed;
+      right: 40px;
+      bottom: 35px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 100;
     }
     .fixed-btn {
-      padding: 13px 24px; border: none; border-radius: 999px; color: #fff; font-weight: bold;
-      cursor: pointer; box-shadow: 0 5px 18px rgba(0,0,0,0.35);
+      padding: 13px 24px;
+      border: none;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 5px 18px rgba(0,0,0,0.35);
     }
     #jumpBtn { background: #ff0000; }
     #topBtn { background: #333; }
@@ -83,7 +231,6 @@
     </div>
     <div id="history"></div>
   </div>
-
   <div id="main">
     <div id="player-area">
       <div id="player"></div>
@@ -92,23 +239,23 @@
     </div>
     <div id="resize-bar"></div>
     <div id="thumbnail-area">
-      <h2>ジョージ・メンズコーチ｜全動画一覧</h2>
+      <h2>男磨きジョージ</h2>
       <div id="videos-wrapper">
         <div id="videos"></div>
-        <div id="loading">全動画を読み込み中...</div>
+        <div id="loading">全動画を読み込み中...（高速化版）</div>
       </div>
     </div>
   </div>
-
   <div class="fixed-buttons">
     <button id="jumpBtn" class="fixed-btn">▶ 再生中へ戻る</button>
     <button id="topBtn" class="fixed-btn">↑ サムネイル一番上に戻る</button>
   </div>
 
 <script>
-  // === 設定（ジョージ・メンズコーチ用）===
+  // === 設定 ===
   const apiKey = "AIzaSyAxk1YpQSe-qDtFUSUmnjnduanag41Mlyk";
-  const playlistId = "UUk9Yd2fK5z7f2e8z9p0q1r2s"; // 実際は後で自動取得に変更
+  const playlistId = "PLPuEbC5xJcL9NTrcJ6fnvY5SKW_k82gcX";   // 男磨きジョージ（男磨きハウス in タイ）
+  const historyKey = "frann_history_男磨きジョージ";
 
   // === DOM ===
   const sidebar = document.getElementById("sidebar");
@@ -126,19 +273,18 @@
   const jumpBtn = document.getElementById("jumpBtn");
   const topBtn = document.getElementById("topBtn");
 
-  let allItems = [];
   let currentActive = null;
   let currentVideoEl = null;
   let isHistoryOpen = false;
 
-  // 履歴機能
-  function loadHistory() { return JSON.parse(localStorage.getItem("frann_history") || "[]"); }
+  // ====================== 履歴機能 ======================
+  function loadHistory() { return JSON.parse(localStorage.getItem(historyKey) || "[]"); }
   function saveHistory(video) {
     let history = loadHistory();
     history = history.filter(item => item.id !== video.id);
     history.unshift(video);
     history = history.slice(0, 30);
-    localStorage.setItem("frann_history", JSON.stringify(history));
+    localStorage.setItem(historyKey, JSON.stringify(history));
     renderHistory();
   }
   function renderHistory() {
@@ -155,8 +301,8 @@
     });
   }
   function clearHistory() {
-    if (confirm("再生履歴をすべて削除しますか？")) {
-      localStorage.removeItem("frann_history");
+    if (confirm("男磨きジョージの再生履歴をすべて削除しますか？")) {
+      localStorage.removeItem(historyKey);
       renderHistory();
     }
   }
@@ -166,7 +312,7 @@
     toggleHistoryBtn.textContent = isHistoryOpen ? "‹" : "›";
   }
 
-  // 動画再生
+  // ====================== 動画再生 ======================
   function playVideo(videoId, title, videoItemElement) {
     player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
     if (currentActive) currentActive.classList.remove("active");
@@ -176,29 +322,38 @@
     saveHistory({ id: videoId, title });
   }
 
-  // YouTube API - チャンネル全動画取得（Uploads）
+  // ====================== リンクコピー機能 ======================
+  function copyLink(videoId) {
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = event.currentTarget;
+      const originalText = btn.textContent;
+      btn.textContent = "✓ コピー";
+      btn.style.background = "#4caf50";
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = "rgba(0,0,0,0.85)";
+      }, 1600);
+    });
+  }
+
+  // ====================== YouTube API ======================
   async function fetchAllVideos() {
-    const channelHandle = "coachjoji";
-    // チャンネルID取得
-    let res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${channelHandle}&key=${apiKey}`);
-    let data = await res.json();
-    const channelId = data.items[0].id;
-
-    // UploadsプレイリストID取得
-    res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`);
-    data = await res.json();
-    const playlistId = data.items[0].contentDetails.relatedPlaylists.uploads;
-
-    // 全動画取得
     let items = [];
     let pageToken = "";
+    let pageCount = 0;
+    const maxPages = 20;
+    loadingEl.textContent = "動画を高速取得中...";
     do {
       const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${pageToken}`;
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
       const data = await res.json();
       if (data.items) items = items.concat(data.items);
       pageToken = data.nextPageToken;
-    } while (pageToken);
+      pageCount++;
+      loadingEl.textContent = `取得中... ${items.length}本 (${pageCount}ページ)`;
+    } while (pageToken && pageCount < maxPages);
     return items;
   }
 
@@ -209,20 +364,28 @@
       const title = item.snippet.title;
       const videoId = item.snippet.resourceId?.videoId;
       if (!videoId) return;
-      const thumbnail = item.snippet.thumbnails?.medium?.url || "";
+      const thumbnail = item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || "";
       const div = document.createElement("div");
       div.className = "video-item";
       div.dataset.id = videoId;
       div.innerHTML = `
         <div class="thumbnail">
-          <img src="${thumbnail}" loading="lazy">
+          <img src="${thumbnail}" loading="lazy" alt="${title}">
           <div class="play-btn">▶</div>
         </div>
-        <p>${title}</p>
+        <div class="video-title">
+          ${title}
+          <button class="copy-btn">🔗</button>
+        </div>
       `;
-      div.querySelector('.play-btn').onclick = (e) => {
+      div.onclick = (e) => {
+        if (!e.target.classList.contains('copy-btn')) {
+          playVideo(videoId, title, div);
+        }
+      };
+      div.querySelector('.copy-btn').onclick = (e) => {
         e.stopPropagation();
-        playVideo(videoId, title, div);
+        copyLink(videoId);
       };
       fragment.appendChild(div);
     });
@@ -230,7 +393,7 @@
     loadingEl.style.display = "none";
   }
 
-  // リサイズ機能（省略せずそのまま）
+  // ====================== リサイズ機能 ======================
   let isResizingHorizontal = false;
   let isResizingVertical = false;
   function initResize() {
@@ -243,14 +406,12 @@
     };
     resizeBar.addEventListener("mousedown", startHorizontal);
     playerHorizontalHandle.addEventListener("mousedown", startHorizontal);
-
     verticalResizeBar.addEventListener("mousedown", (e) => {
       isResizingVertical = true;
       verticalResizeBar.classList.add("active");
       document.body.style.cursor = "row-resize";
       e.preventDefault();
     });
-
     document.addEventListener("mousemove", (e) => {
       if (isResizingHorizontal) {
         const mainRect = document.getElementById("main").getBoundingClientRect();
@@ -266,7 +427,6 @@
         document.documentElement.style.setProperty("--player-height", newHeightVh + "vh");
       }
     });
-
     document.addEventListener("mouseup", () => {
       if (isResizingHorizontal) {
         isResizingHorizontal = false;
@@ -287,17 +447,14 @@
     topBtn.onclick = () => videosWrapper.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // メイン実行
   async function main() {
     try {
-      loadingEl.textContent = "ジョージさんの全動画を読み込み中...";
-      allItems = await fetchAllVideos();
-      // 新しい順にソート
-      allItems.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
+      const allItems = await fetchAllVideos();
       renderAllVideos(allItems);
       renderHistory();
     } catch (err) {
-      videosContainer.innerHTML = `<p style="color:red; padding:20px;">エラー: ${err.message}</p>`;
+      console.error(err);
+      videosContainer.innerHTML = `<p style="color:red; padding:20px;">読み込みエラー: ${err.message}<br>APIキーが無効か、制限を超えています。</p>`;
       loadingEl.style.display = "none";
     }
   }
